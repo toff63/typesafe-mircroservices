@@ -18,15 +18,7 @@ trait AsyncConfiguration {
 }
 
 @Singleton
-class Application extends Controller with AsyncConfiguration {
-
-  val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551").withFallback(ConfigFactory.load("akka.conf"))
-
-  /**
-   * All actors that want to belong to the same cluster need to use the same
-   * ActorSystem name
-   */
-  implicit val actorSystem = ActorSystem("cluster-example", config)
+class Application @Inject()(actorSystem:ActorSystem) extends Controller with AsyncConfiguration {
 
   val threadPool = play.api.libs.concurrent.Execution.Implicits.defaultContext
   val mediator = DistributedPubSubExtension(actorSystem).mediator

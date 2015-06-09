@@ -13,14 +13,14 @@ object ApplicationMain extends App {
 
   // Simple cli parsing
   val port = args match {
-    case Array()     => "2551"
+    case Array()     => "0"
     case Array(port) => port
     case args        => throw new IllegalArgumentException(s"only ports. Args [ $args ] are invalid")
   }
 
   // System initialization
-  val properties = Map("akka.remote.netty.tcp.port" -> "2551")
+  val properties = Map("akka.remote.netty.tcp.port" -> port)
 
-  implicit val system = ActorSystem("cluster-example", ConfigFactory.load())
+  implicit val system = ActorSystem("application", ConfigFactory.load())
   val personAggregate = system.actorOf(HelloActor.props, "hello")
 }
