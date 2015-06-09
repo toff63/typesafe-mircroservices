@@ -8,37 +8,34 @@ import akka.pattern.ask
 import scala.concurrent.duration._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import akka.util.Timeout
+import akka.contrib.pattern.DistributedPubSubExtension
+import akka.contrib.pattern.DistributedPubSubMediator
+import com.typesafe.config.ConfigFactory
+import net.francesbagual.sandbox.microservice.akka.PersonService
 
 trait AsyncConfiguration {
-  val timeout:Timeout = 5 seconds
+  val timeout: Timeout = 10 seconds
 }
 
 @Singleton
-class Application @Inject() (system: ActorSystem) extends Controller with AsyncConfiguration {
-  val helloActor = system.actorOf(HelloActor.props, "hello-actor")
+class Application extends Controller with AsyncConfiguration {
+
+  val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551").withFallback(ConfigFactory.load("akka.conf"))
+
+  /**
+   * All actors that want to belong to the same cluster need to use the same
+   * ActorSystem name
+   */
+  implicit val actorSystem = ActorSystem("cluster-example", config)
+
   val threadPool = play.api.libs.concurrent.Execution.Implicits.defaultContext
+  val mediator = DistributedPubSubExtension(actorSystem).mediator
 
   def index = Action {
     Ok("Helllo from Play 4.1")
   }
-  
+
   def hello = Action.async {
-    helloActor.ask(HelloActor.SayHello("World"))(timeout).mapTo[String].map {message => Ok(message)}
-  }
-
-}
-
-object HelloActor {
-  def props = Props[HelloActor]
-
-  case class SayHello(name: String)
-}
-
-class HelloActor extends Actor {
-  import HelloActor._
-
-  def receive = {
-    case SayHello(name: String) =>
-      sender() ! "Hello, " + name
+    (mediator ? DistributedPubSubMediator.Send("/user/hello", PersonService.SayHello("World"), localAffinity = false))(timeout).mapTo[String].map { message => Ok(message) }
   }
 }
